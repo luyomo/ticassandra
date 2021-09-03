@@ -14,7 +14,7 @@ type TCPClient struct {
 
 // Start TCPClient
 func (c *TCPClient) Start() {
-	message := "hello from client"
+	message := "hello from client coming"
 	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", c.Host, c.Port))
 	if err != nil {
 		panic(err)

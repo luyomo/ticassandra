@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/felipejfc/go-tcp-example/server"
+	"github.com/luyomo/ticql/server"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +16,6 @@ var serverCmd = &cobra.Command{
 			Port: port,
 		}
 		server.Start()
-
 	},
 }
 

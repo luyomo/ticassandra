@@ -14,7 +14,7 @@
 
 package main
 
-import "github.com/felipejfc/go-tcp-example/cmd"
+import "github.com/luyomo/ticql/cmd"
 
 func main() {
 	cmd.Execute()

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/felipejfc/go-tcp-example/client"
+	"github.com/luyomo/ticql/client"
 	"github.com/spf13/cobra"
 )
 
