@@ -7,7 +7,7 @@ import (
     "encoding/binary"
     "regexp"
     "encoding/hex"
-    //"time"
+    "time"
     "bufio"
 //    "hex"
 //    "reflect"
@@ -36,6 +36,7 @@ func (s *TCPServer) Start() {
 	if err != nil {
 		panic(err)
 	}
+    timeoutDuration := 1 * time.Minute
 	for {
         //message := "0000000000000000000"
         var message []byte
@@ -43,6 +44,7 @@ func (s *TCPServer) Start() {
 		if err != nil {
 			panic(err)
 		}
+        conn.SetReadDeadline(time.Now().Add(timeoutDuration))
         writer := bufio.NewWriter(conn)
         fmt.Println("------------------")
 		go func(conn net.Conn ) {
@@ -50,8 +52,8 @@ func (s *TCPServer) Start() {
 			defer conn.Close()
             for {
                 tableName := ""
-                msg := make([]byte, 256)
-                premsg := make([]byte, 256)
+                msg := make([]byte, 4096)
+                premsg := make([]byte, 4096)
                 //msg := make([]byte, 1024)
                 fmt.Println("\n\n\nStarting to collect data ********** ********** ")
                 _, err = conn.Read(msg)
