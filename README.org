@@ -1,0 +1,79 @@
+
+
+* table meta data without data
+ 00 00 00 02                                                   <- Result type: RESULT_KIND_VOID/RESULT_KIND_ROWS/RESULT_KIND_SET_KEYSPACE/RESULT_KIND_PREPARED/RESULT_KIND_SCHEMA_CHANGE
+ 00 00 00 01 -> flags
+ 00 00 00 0c -> colcount
+ 00 06 73 79 73 74 65 6d                                       <- keyspace name (system)
+ len    1  2  3  4  5  6
+ 00 08 70 65 65 72 73 5f 76 32                                 <- table name    (peers_v2)
+ len    1  2  3  4  5  6  7  8
+ 00 04 70 65 65 72                                     00 10   <- column name   (peer:            InetAddressType )
+ len    1  2  3  4                                     type
+ 00 09 70 65 65 72 5f 70 6f 72 74                      00 09   <- column name   (peer_port:       Int32Type       )
+ len    1  2  3  4  5  6  7  8  9                      type
+ 00 0b 64 61 74 61 5f 63 65 6e 74 65 72                00 0d   <- column name   (data_center:     VarcharType     )
+ len    1  2  3  4  5  6  7  8  9  a  b                type
+ 00 07 68 6f 73 74 5f 69 64                            00 0c   <- column name   (host_id:         UUIDType        )
+ len    1  2  3  4  5  6  7                            type
+ 00 0e 6e 61 74 69 76 65 5f 61 64 64 72 65 73 73       00 10   <- column name   (native_address:  InetAddressType )
+ len    1  2  3  4  5  6  7  8  9  1  b  c  d  e       type
+ 00 0b 6e 61 74 69 76 65 5f 70 6f 72 74                00 09   <- column name   (native_port:     Int32Type       )
+ len    1  2  3  4  5  6  7  8  9  a  b                type
+ 00 0c 70 72 65 66 65 72 72 65 64 5f 69 70             00 10   <- column name   (preferred_ip:    Int32Type       )
+ len    1  2  3  4  5  6  7  8  9  a  b  c             type
+ 00 0e 70 72 65 66 65 72 72 65 64 5f 70 6f 72 74       00 09   <- column name   (preferred_port:  Int32Type       )
+ len    1  2  3  4  5  6  7  8  9  a  b  c  d  e       type
+ 00 04 72 61 63 6b                                     00 0d   <- column name   (rack:            VarcharType     )
+ len    1  2  3  4                                     type
+ 00 0f 72 65 6c 65 61 73 65 5f 76 65 72 73 69 6f 6e    00 0d   <- column name   (release_version: VarcharType     )
+ len    1  2  3  4  5  6  7  8  9  a  b  c  d  e  f    type
+ 00 0e 73 63 68 65 6d 61 5f 76 65 72 73 69 6f 6e       00 0c   <- column name   (schema_version:  UUIDType        )
+ len    1  2  3  4  5  6  7  8  9  a  b  c  d  e       type
+ 00 06 74 6f 6b 65 6e 73                               00 22   <- column name   (tokens:          SetType         )
+ len    1  2  3  4  5  6                               type
+ 00 0d 00 00 00 00                                             <- ?? end characters ??
+
+* data with meta info
+d60002                                   <- 17 bit(little endian) + 7 bit
+77bd3f                                   <- crc24
+85                                       <- version
+00                                       <- option
+0003                                     <- stream id
+08                                       <- op(result response)
+000000cd                                 <- body length
+00000002
+00000001
+00000003
+000d 73797374656d5f736368656d61          <- key space name(system_schema)
+0009 6b6579737061636573                  <- schema name(keyspaces)
+000d 6b657973706163655f6e616d65 000d     <- colname (keyspace_name)
+000e 64757261626c655f777269746573 0004   <- colname (durable_writes)
+000b 7265706c69636174696f6e 0021         <- colname (replication)
+000d000d 
+00000005                 <- row count 
+0000000b 73797374656d5f61757468          <- system_auth
+00000001 01                              <- 0x01
+00000057 0000000200000005636c6173730000002b6f72672e6170616368652e63617373616e6472612e6c6f6361746f722e53696d706c655374726174656779000000127265706c69636174696f6e5f666163746f720000000131  <- org.apache.cassandra.locator.SimpleStrategy
+
+0000000d 73797374656d5f736368656d61      <- system_schema
+00000001 01                              <- 0x01
+0000003b 0000000100000005636c6173730000002a6f72672e6170616368652e63617373616e6472612e6c6f6361746f722e4c6f63616c5374726174656779     <- *org.apache.cassandra.locator.LocalStrategy
+
+00000012 73797374656d5f6469737472696275746564     <- system_distributed 
+00000001 01                                       <- 0x01
+00000057 0000000200000005636c6173730000002b6f72672e6170616368652e63617373616e6472612e6c6f6361746f722e53696d706c655374726174656779000000127265706c69636174696f6e5f666163746f720000000133   <- 
+
+00000006 73797374656d
+00000001 01
+0000003b 0000000100000005636c6173730000002a6f72672e6170616368652e63617373616e6472612e6c6f6361746f722e4c6f63616c5374726174656779
+
+0000000d 73797374656d5f747261636573
+00000001 01
+00000057 0000000200000005636c6173730000002b6f72672e6170616368652e63617373616e6472612e6c6f6361746f722e53696d706c655374726174656779000000127265706c69636174696f6e5f666163746f720000000132
+
+
+ _process_segment_buffer, 620
+ The segment codec is <<cassandra.segment.SegmentCodec object at 0x7fb83b4b00>>
+ the header_data is 20262 length: 3, CRC24_LENGTH: 3, expected_header_crc: a5a91a, actual_header_crc: a5a91a
+ COming here to compare the data <620> vs <620>
