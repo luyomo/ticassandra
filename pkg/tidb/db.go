@@ -4,7 +4,9 @@ import (
     "fmt"
 //    "time"
     "log"
+    "strconv"
      "database/sql"
+//     "encoding/binary"
 //    "reflect"
       _ "github.com/go-sql-driver/mysql"
      "github.com/didi/gendry/scanner"
@@ -58,6 +60,10 @@ var MapDataType = map[string]uint16{
     "INT" : 0x000E,
 }
 
+var MapDataTypeLength = map[string]uint16{
+    "INT" : 0x04,
+}
+
 func queryAnything(db *sql.DB, query string) (string) {
     var output string
     keyspace := "dummykeyspace"
@@ -100,12 +106,35 @@ func queryAnything(db *sql.DB, query string) (string) {
     }
 
     result,err := scanner.ScanMap(rows)
-    fmt.Printf("The result is <%v> \n", result)
+    fmt.Printf("The result is <%v> %d \n", result, len(result))
+    body := fmt.Sprintf("%08x", len(result))
     for _,record := range result {
-        fmt.Printf("The data is <%v> \n", record)
+        for _, columnMetaData := range columnTypes {
+            if value, ok := (record[columnMetaData.ColumnName]).([]byte); ok {
+                //fmt.Printf("length is -> %d \n", int(value ))
+                //fmt.Printf("The value is <%d>, %x \n", binary.BigEndian.Uint16(value), 1)
+                //fmt.Printf("The value is <%d>, %x \n", uint16(value), 1)
+                __intValue, _err := strconv.Atoi(string(value))
+                if _err != nil {
+                    panic("Error")
+                }
+                fmt.Printf("The value here is <%d>\n", __intValue)
+                body += fmt.Sprintf("%08x%08x",MapDataTypeLength[columnMetaData.TiDataType] , __intValue)
+            } else {
+                fmt.Printf("It's wrong.")
+            }
+            //body += fmt.Sprintf("%08x%d",MapDataTypeLength[columnMetaData.TiDataType] , int(record[columnMetaData.ColumnName] ))
+            //fmt.Printf("The body is : <%s>", body)
+            //fmt.Printf("Data size is <%d> value: <%#v> \n" , MapDataTypeLength[columnMetaData.TiDataType] , binary.BigEndian.Uint32([]byte(record[columnMetaData.ColumnName])))
+            //fmt.Printf("Data size is <%08x> value: <%08x> \n" , MapDataTypeLength[columnMetaData.TiDataType] , value )
+            //columnMeta := fmt.Sprintf("%04x%x%04x", len(columnMetaData.ColumnName), columnMetaData.ColumnName, columnMetaData.CDataTypeCode) 
+            //fmt.Printf("column meta data: <%s>\n", columnMeta)
+            //output += columnMeta
+        }
     }
+    fmt.Printf("body: %s\n", body)
 
-    return output
+    return output + body
 }
 
 func main() {
