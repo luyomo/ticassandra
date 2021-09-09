@@ -13,8 +13,9 @@ import (
     "time"
     "bufio"
     "hash/crc32"
-    "database/sql"
     _ "github.com/go-sql-driver/mysql"
+    "github.com/luyomo/ticql/pkg/tidb"
+    "database/sql"
 )
 
 // TCPServer struct
@@ -60,6 +61,13 @@ func (s *TCPServer) Start() {
         writer := bufio.NewWriter(conn)
         fmt.Println("------------------")
         go func(conn net.Conn ) {
+            db, err := sql.Open("mysql", "cqluser:cqluser@tcp(192.168.1.108:4000)/test")
+            if err != nil {
+                panic (err) 
+                return
+            }
+            defer db.Close()
+
             sessionVersion := 0
             defer conn.Close()
             for {
@@ -289,7 +297,7 @@ func (s *TCPServer) Start() {
                                 continue
                             }
                             fmt.Println("peers_v2: data sending")
-                            message=returnDefault(queryMessage)
+                            message=returnDefault(db, queryMessage)
                             fmt.Printf("The data to send is <%x>", message)
                             writer.WriteString(string(message))
                             writer.Flush()
@@ -508,9 +516,9 @@ func returnVirtualColumns() []byte{
     return decodedByteArray
 }
 
-func returnDefault(queryMessage QueryMessage) []byte{
-    //return compute_crc32(0x85, 0x00, queryMessage.StreamID, 0x08, "000000020000000100000002000d64756d6d796b65797370616365000e64756d6d797461626c656e616d650005636f6c3031000e0005636f6c3032000e00000000")
-    return compute_crc32(0x85, 0x00, queryMessage.StreamID, 0x08, "000000020000000100000002000d64756d6d796b65797370616365000e64756d6d797461626c656e616d650005636f6c3031000e0005636f6c3032000e00000003000000040000000100000004000000010000000400000002000000040000000000000004000000030000000400000000")
+func returnDefault(db *sql.DB, queryMessage QueryMessage) []byte{
+    output := tidb.QueryAnything(db, "SELECT col01, col02 FROM test01" )
+    return compute_crc32(0x85, 0x00, queryMessage.StreamID, 0x08, output)
 }
 
 func compute_crc32(version int, flag int, streamId int16, operation int, payLoad string) []byte {

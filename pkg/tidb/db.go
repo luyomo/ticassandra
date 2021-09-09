@@ -1,4 +1,4 @@
-package main 
+package tidb
 
 import (
     "fmt"
@@ -64,7 +64,7 @@ var MapDataTypeLength = map[string]uint16{
     "INT" : 0x04,
 }
 
-func queryAnything(db *sql.DB, query string) (string) {
+func QueryAnything(db *sql.DB, query string) (string) {
     var output string
     keyspace := "dummykeyspace"
     tablename := "dummytablename"
@@ -137,13 +137,13 @@ func queryAnything(db *sql.DB, query string) (string) {
     return output + body
 }
 
-func main() {
-    db, err := sql.Open("mysql", "cqluser:cqluser@tcp(192.168.1.108:4000)/test")
-    if err != nil {
-        panic (err) 
-        return
-    }
-    defer db.Close()
-    output := queryAnything(db, "SELECT col01, col02 FROM test01" )
-    fmt.Printf("The data is <%s>\n", output)
-}
+//func main() {
+//    db, err := sql.Open("mysql", "cqluser:cqluser@tcp(192.168.1.108:4000)/test")
+//    if err != nil {
+//        panic (err) 
+//        return
+//    }
+//    defer db.Close()
+//    output := queryAnything(db, "SELECT col01, col02 FROM test01" )
+//    fmt.Printf("The data is <%s>\n", output)
+//}
