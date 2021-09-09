@@ -10,6 +10,7 @@ import (
 //    "reflect"
       _ "github.com/go-sql-driver/mysql"
      "github.com/didi/gendry/scanner"
+     "github.com/araddon/dateparse"
 )
 
 const (
@@ -58,10 +59,16 @@ type ColumnType struct {
 
 var MapDataType = map[string]uint16{
     "INT" : 0x000E,
+    "BIGINT" : 0x0002,
+    "VARCHAR": 0x000D,
+    "CHAR": 0x000D,
+    "DATETIME":  0x000B,
 }
 
 var MapDataTypeLength = map[string]uint16{
     "INT" : 0x04,
+    "BIGINT" : 0x08,
+    "DATETIME": 0x08,
 }
 
 func QueryAnything(db *sql.DB, query string) (string) {
@@ -93,7 +100,7 @@ func QueryAnything(db *sql.DB, query string) (string) {
         panic(err)
     }
     for _idx, schema  := range fieldType {
-        fmt.Printf("The schema is <%s>\n", schema.DatabaseTypeName() )
+        // fmt.Printf("The schema is <%s>\n", schema.DatabaseTypeName() )
         columnTypes[_idx].TiDataType     = schema.DatabaseTypeName()
         columnTypes[_idx].CDataTypeCode  = MapDataType[schema.DatabaseTypeName()]
     }
@@ -101,7 +108,7 @@ func QueryAnything(db *sql.DB, query string) (string) {
 
     for _, columnMetaData := range columnTypes {
         columnMeta := fmt.Sprintf("%04x%x%04x", len(columnMetaData.ColumnName), columnMetaData.ColumnName, columnMetaData.CDataTypeCode) 
-        fmt.Printf("column meta data: <%s>\n", columnMeta)
+         fmt.Printf("column meta data: <%s>\n", columnMeta)
         output += columnMeta
     }
 
@@ -110,26 +117,46 @@ func QueryAnything(db *sql.DB, query string) (string) {
     body := fmt.Sprintf("%08x", len(result))
     for _,record := range result {
         for _, columnMetaData := range columnTypes {
-            if value, ok := (record[columnMetaData.ColumnName]).([]byte); ok {
-                //fmt.Printf("length is -> %d \n", int(value ))
-                //fmt.Printf("The value is <%d>, %x \n", binary.BigEndian.Uint16(value), 1)
-                //fmt.Printf("The value is <%d>, %x \n", uint16(value), 1)
-                __intValue, _err := strconv.Atoi(string(value))
-                if _err != nil {
-                    panic("Error")
+            if byteValue, ok := (record[columnMetaData.ColumnName]).([]byte); ok {
+                switch  columnMetaData.TiDataType {
+                    case
+                        "INT",
+                        "BIGINT":
+                           //if value, ok := (record[columnMetaData.ColumnName]).([]byte); ok {
+                               fmt.Printf("The column [%s] is %s \n" , columnMetaData.TiDataType, columnMetaData.ColumnName )
+                               //__intValue, _err := strconv.Atoi(string(value))
+                               __intValue, _err := strconv.Atoi(string(byteValue))
+                               if _err != nil {
+                                   panic("Error")
+                               }
+                               fmt.Printf("The value here is <%d>\n", __intValue)
+                               if columnMetaData.TiDataType == "INT" {
+                                   body += fmt.Sprintf("%08x%08x",MapDataTypeLength[columnMetaData.TiDataType] , __intValue)
+                               }else if columnMetaData.TiDataType == "BIGINT" {
+                                   body += fmt.Sprintf("%08x%016x",MapDataTypeLength[columnMetaData.TiDataType] , __intValue)
+                               }
+                           //} else {
+                           //    fmt.Printf("It's wrong.")
+                          // }
+                    case "VARCHAR",
+                         "CHAR":
+                       fmt.Printf("The column [VARCHAR] is %s \n" , columnMetaData.ColumnName )
+                       fmt.Printf("The string is <%#v>\n", string(byteValue))
+                       body += fmt.Sprintf("%08x%x",len(byteValue), byteValue)
+                       //body += fmt.Sprintf("%08x%08x",MapDataTypeLength[columnMetaData.TiDataType] , __intValue)
+                    case "DATETIME":
+                        fmt.Printf("The column [DATETIME] is %s \n" , columnMetaData.ColumnName )
+                        fmt.Printf("The date time is <%s>\n", byteValue )
+                        theDateTime, err := dateparse.ParseLocal(string(byteValue) )
+                        if err != nil {
+                            panic(err.Error())
+                        }
+                        fmt.Printf("The date time is <%d>\n",  theDateTime.Unix())
+                        body += fmt.Sprintf("%08x%016x",MapDataTypeLength[columnMetaData.TiDataType] , theDateTime.Unix() )
                 }
-                fmt.Printf("The value here is <%d>\n", __intValue)
-                body += fmt.Sprintf("%08x%08x",MapDataTypeLength[columnMetaData.TiDataType] , __intValue)
             } else {
-                fmt.Printf("It's wrong.")
+                panic(fmt.Sprintf("Failed to parse the value: name: <%s>, value: <%#v>", columnMetaData.ColumnName,  record[columnMetaData.ColumnName]))
             }
-            //body += fmt.Sprintf("%08x%d",MapDataTypeLength[columnMetaData.TiDataType] , int(record[columnMetaData.ColumnName] ))
-            //fmt.Printf("The body is : <%s>", body)
-            //fmt.Printf("Data size is <%d> value: <%#v> \n" , MapDataTypeLength[columnMetaData.TiDataType] , binary.BigEndian.Uint32([]byte(record[columnMetaData.ColumnName])))
-            //fmt.Printf("Data size is <%08x> value: <%08x> \n" , MapDataTypeLength[columnMetaData.TiDataType] , value )
-            //columnMeta := fmt.Sprintf("%04x%x%04x", len(columnMetaData.ColumnName), columnMetaData.ColumnName, columnMetaData.CDataTypeCode) 
-            //fmt.Printf("column meta data: <%s>\n", columnMeta)
-            //output += columnMeta
         }
     }
     fmt.Printf("body: %s\n", body)
@@ -137,13 +164,3 @@ func QueryAnything(db *sql.DB, query string) (string) {
     return output + body
 }
 
-//func main() {
-//    db, err := sql.Open("mysql", "cqluser:cqluser@tcp(192.168.1.108:4000)/test")
-//    if err != nil {
-//        panic (err) 
-//        return
-//    }
-//    defer db.Close()
-//    output := queryAnything(db, "SELECT col01, col02 FROM test01" )
-//    fmt.Printf("The data is <%s>\n", output)
-//}

@@ -3,6 +3,7 @@ module github.com/luyomo/ticql
 go 1.16
 
 require (
+	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/didi/gendry v1.7.0 // indirect
 	github.com/felipejfc/go-tcp-example v0.0.0-20170513154354-996e7f18b0e1
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
