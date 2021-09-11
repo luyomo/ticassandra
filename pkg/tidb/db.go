@@ -58,17 +58,18 @@ type ColumnType struct {
 }
 
 var MapDataType = map[string]uint16{
-    "INT" : 0x000E,
-    "BIGINT" : 0x0002,
-    "VARCHAR": 0x000D,
-    "CHAR": 0x000D,
-    "DATETIME":  0x000B,
+    "INT"      : 0x000E,
+    "BIGINT"   : 0x0002,
+    "VARCHAR"  : 0x000D,
+    "TEXT"     : 0x000D,
+    "CHAR"     : 0x000D,
+    "DATETIME" : 0x000B,
 }
 
 var MapDataTypeLength = map[string]uint16{
-    "INT" : 0x04,
-    "BIGINT" : 0x08,
-    "DATETIME": 0x08,
+    "INT"      : 0x04,
+    "BIGINT"   : 0x08,
+    "DATETIME" : 0x08,
 }
 
 func QueryAnything(db *sql.DB, query string) (string) {
@@ -117,6 +118,27 @@ func QueryAnything(db *sql.DB, query string) (string) {
     body := fmt.Sprintf("%08x", len(result))
     for _,record := range result {
         for _, columnMetaData := range columnTypes {
+            if record[columnMetaData.ColumnName] == nil {
+                switch  columnMetaData.TiDataType {
+                    case
+                        "INT",
+                        "BIGINT":
+                            if columnMetaData.TiDataType == "INT" {
+                                body += fmt.Sprintf("%08x%08x",MapDataTypeLength[columnMetaData.TiDataType], 0x00)
+                            }else if columnMetaData.TiDataType == "BIGINT" {
+                                body += fmt.Sprintf("%08x%016x",MapDataTypeLength[columnMetaData.TiDataType], 0x00)
+                            }
+                    case "VARCHAR",
+                         "CHAR",
+                         "TEXT":
+                       body += fmt.Sprintf("%08x",0x00)
+                    case "DATETIME":
+                        body += fmt.Sprintf("%08x%016x",MapDataTypeLength[columnMetaData.TiDataType] , 0 )
+                }
+                continue
+            }
+
+            fmt.Printf("The data is %s: <%#v> \n", columnMetaData.ColumnName  , record[columnMetaData.ColumnName])
             if byteValue, ok := (record[columnMetaData.ColumnName]).([]byte); ok {
                 switch  columnMetaData.TiDataType {
                     case
@@ -139,7 +161,8 @@ func QueryAnything(db *sql.DB, query string) (string) {
                            //    fmt.Printf("It's wrong.")
                           // }
                     case "VARCHAR",
-                         "CHAR":
+                         "CHAR",
+                         "TEXT":
                        fmt.Printf("The column [VARCHAR] is %s \n" , columnMetaData.ColumnName )
                        fmt.Printf("The string is <%#v>\n", string(byteValue))
                        body += fmt.Sprintf("%08x%x",len(byteValue), byteValue)
