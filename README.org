@@ -1,6 +1,7 @@
 
 
 * table meta data without data
+#+BEGIN_SRC
  00 00 00 02                                                   <- Result type: RESULT_KIND_VOID/RESULT_KIND_ROWS/RESULT_KIND_SET_KEYSPACE/RESULT_KIND_PREPARED/RESULT_KIND_SCHEMA_CHANGE
  00 00 00 01 -> flags
  00 00 00 0c -> colcount
@@ -33,8 +34,10 @@
  00 06 74 6f 6b 65 6e 73                               00 22   <- column name   (tokens:          SetType         )
  len    1  2  3  4  5  6                               type
  00 0d 00 00 00 00                                             <- ?? end characters ??
+#+END_SRC
 
 * data with meta info
+#+BEGIN_SRC
 d60002                                   <- 17 bit(little endian) + 7 bit
 77bd3f                                   <- crc24
 85                                       <- version
@@ -105,3 +108,4 @@ _PAGING_OPTIONS_FLAG          = 0x80000000
 
 
 <QueryMessage(query='SELECT 1 ;', query_params=None, consistency_level=10, serial_consistency_level=None, fetch_size=5000, paging_state=None, timestamp=1631323029002819, skip_meta=False,  continuous_paging_options=None, keyspace=None, allow_beta_protocol_version=False)>
+#+END_SRC
