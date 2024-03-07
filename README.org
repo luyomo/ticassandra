@@ -1,5 +1,64 @@
+* Handshake
+** Packet Flow
+   + Get Option Message
+   + Send Support message to client
+   + Get Startup Message
+** Get Option request from client
+*** Check whether the version(0x41)
+    #+BEGIN_SRC
+ []byte{0x42, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x0}
+    #+END_SRC
+*** Check server version(0x5)
+   #+BEGIN_SRC
+ []byte{0x5, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x0}
+    #+END_SRC
+** Send support info to client
+   #+BEGIN_SRC
+   0x85 00 00 00 06 00 00 00     66 00 03 00 11 50 52 4f
+     54 4f 43 4f 4c 5f 56 45     52 53 49 4f 4e 53 00 04
+     00 04 33 2f 76 33 00 04     34 2f 76 34 00 04 35 2f
+     76 35 00 09 36 2f 76 36     2d 62 65 74 61 00 0b 43
+     4f 4d 50 52 45 53 53 49     4f 4e 00 02 00 06 73 6e
+     61 70 70 79 00 03 6c 7a     34 00 0b 43 51 4c 5f 56
+     45 52 53 49 4f 4e 00 01     00 05 33 2e 34 2e 35
 
+<- Protocol version-> <- flag-> <- stream id-> <- op code-> <- length of message ->
+0x83                  0x00 0x00 0x00           0x06         0x00 0x00 0x00 0x66
 
+<- Number of kv -> <- Length of first key -> <- Key                          -> <- Number of values->     <- Length of first value ->
+  \x00 \x03        \x00 \x11                 PROTOCOL_VERSIONS                  \x00 \x04                 \x00 \x04
+<- Fisr value -> <- Length of second value -> <- Second value -> <- Length of third value -> <- Third value -> <- Length of fourth value -> <- fourth value ->
+3 / v 3          \x00 \x04                    4 / v 4            \x00 \x04                    5 / v 5           \x00 \t                     6 / v 6 - b e t a
+<- Length of second key -><- key value -> <- Number of values -> <- Length of first value -> <- First value -> <- Length of second value -> <- Second Value ->
+\x00 \x0b                 COMPRESSION     \x00 \x02              \x00 \x06                   snappy            \x00 \x03                      l z 4
+<- Length of third key -> <- key value -> <- Number of values -> <- Length of first value -> <- First value ->
+\x00 \x0b                 CQL_VERSION      \x00 \x01             \x00 \x05                   3.4.7
+
+   #+END_SRC
+
+   #+BEGIN_SRC
+x00  x03   x00  x11     P    R    O    T     O      C     O     L    _      V     E    R      S    I     O     N      S    x00  x04  x00   x04   3    /     v     3    x00  x04   4     /     v     4    x00  x04    5    /     v     5    x00   \t   6     /     v     6     -     b     e     t     a    x00  x0b   C     O     M     P     R     E     S     S     I     O     N    x00  x02  x00  x06   s     n    a      p     p     y    x00  x03   l     z      4   x00  x0b   C     Q     L     _     V     E     R     S     I     O     N    x00  x01  x00 x05   3     .     4     .     7
+                                     0x0, 0x3, 0x0, 0x11, 0x50, 0x52, 0x4f, 0x54, 0x4f, 0x43, 0x4f, 0x4c, 0x5f, 0x56, 0x45, 0x52, 0x53, 0x49, 0x4f, 0x4e, 0x53, 0x0, 0x4, 0x0, 0x4, 0x33, 0x2f, 0x76, 0x33, 0x0, 0x4, 0x34, 0x2f, 0x76, 0x34, 0x0, 0x4, 0x35, 0x2f, 0x76, 0x35, 0x0, 0x9, 0x36, 0x2f, 0x76, 0x36, 0x2d, 0x62, 0x65, 0x74, 0x61, 0x0, 0xb, 0x43, 0x4f, 0x4d, 0x50, 0x52, 0x45, 0x53, 0x53, 0x49, 0x4f, 0x4e, 0x0, 0x2, 0x0, 0x6, 0x73, 0x6e, 0x61, 0x70, 0x70, 0x79, 0x0, 0x3, 0x6c, 0x7a, 0x34, 0x0, 0xb, 0x43, 0x51, 0x4c, 0x5f, 0x56, 0x45, 0x52, 0x53, 0x49, 0x4f, 0x4e, 0x0, 0x1, 0x0, 0x5, 0x33, 0x2e, 0x34, 0x2e, 0x37
+   \x85\x00\x00\x00\x06\x00\x00\x00f\x00\x03\x00\x11PROTOCOL_VERSIONS\x00\x04\x00\x043/v3\x00\x044/v4\x00\x045/v5\x00\t6/v6-beta\x00\x0bCOMPRESSION\x00\x02\x00\x06snappy\x00\x03lz4\x00\x0bCQL_VERSION\x00\x01\x00\x053.4.7
+   \x85\x00\x00\x00\x06\x00\x00\x00o\x00\x03\x00\x11PROTOCOL_VERSIONS\x00\x04\x00\x043/v3\x00\x044/v4\x00\x045/v5\x00\t6/v6-beta\x00\x0bCOMPRESSION\x00\x02\x00\x06snappy\x00\x03lz4\x00\x0bCQL_VERSION\x00\x01\x00\x053.4.7
+
+f -> 66
+o -> 6f
+   #+END_SRC
+
+** Get Startup message from client
+   #+BEGIN_SRC
+<- protocol version -> <- flags -> <- stream id -> <- op code -> <- body message length ->
+0x5                   , 0x0, 0x0   , 0x1           , 0x1         , 0x0, 0x0, 0x0, 0x53
+<- Number of map element -> 
+0x0, 0x3
+<- 01 -><- Length of key -> <- First key                                                  ->   <- Length of value -> <- value                                                                                                                        -> 
+        0x0, 0xb            0x44, 0x52, 0x49, 0x56, 0x45, 0x52, 0x5f, 0x4e, 0x41, 0x4d, 0x45   0x0, 0x16             0x44, 0x61, 0x74, 0x61, 0x53, 0x74, 0x61, 0x78, 0x20, 0x50, 0x79, 0x74, 0x68, 0x6f, 0x6e, 0x20, 0x44, 0x72, 0x69, 0x76, 0x65, 0x72
+<- 02 -><- Length of key -> <- Key                                                                          -> <- Length value -> <- Value ->
+        0x0, 0xe            0x44, 0x52, 0x49, 0x56, 0x45, 0x52, 0x5f, 0x56, 0x45, 0x52, 0x53, 0x49, 0x4f, 0x4e 0x0, 0x6           0x33, 0x2e, 0x32, 0x39, 0x2e, 0x30
+<- 03 -><- Length of key -> <- Key                                                         ->  <- Length of Value -> <- Value ->
+        0x0, 0xb           , 0x43, 0x51, 0x4c, 0x5f, 0x56, 0x45, 0x52, 0x53, 0x49, 0x4f, 0x4e   0x0, 0x5             , 0x33, 0x2e, 0x34, 0x2e, 0x37
+   #+END_SRC
 * table meta data without data
 #+BEGIN_SRC
  00 00 00 02                                                   <- Result type: RESULT_KIND_VOID/RESULT_KIND_ROWS/RESULT_KIND_SET_KEYSPACE/RESULT_KIND_PREPARED/RESULT_KIND_SCHEMA_CHANGE
@@ -109,3 +168,74 @@ _PAGING_OPTIONS_FLAG          = 0x80000000
 
 <QueryMessage(query='SELECT 1 ;', query_params=None, consistency_level=10, serial_consistency_level=None, fetch_size=5000, paging_state=None, timestamp=1631323029002819, skip_meta=False,  continuous_paging_options=None, keyspace=None, allow_beta_protocol_version=False)>
 #+END_SRC
+
+* cqlsh debug
+** Rename zip lib to avoid to be called
+   #+BEGIN_SRC
+workstation$ sudo mv /usr/share/cassandra/lib/cassandra-driver-internal-only-3.25.0.zip  /usr/share/cassandra/lib/cassandra-driver-internal-only-3.25.0.zip.bak
+   #+END_SRC
+** Rename connection.cpython-39-x86_64-linux-gnu.so
+   #+BEGIN_SRC
+workstation$ sudo mv /home/jay.zhang/.local/lib/python3.9/site-packages/cassandra/connection.cpython-39-x86_64-linux-gnu.so /home/jay.zhang/.local/lib/python3.9/site-packages/cassandra/connection.cpython-39-x86_64-linux-gnu.so.bak
+   #+END_SRC
+** Enble log
+   #+BEGIN_SRC
+workstation$ more /home/jay.zhang/.local/lib/python3.9/site-packages/cassandra/__init__.py
+class NullHandler(logging.Handler):
+
+    def emit(self, record):
+        pass
+
+logging.getLogger('cassandra').addHandler(NullHandler())
+logging.basicConfig(filename='/tmp/cqlsh.log', encoding='utf-8', level=logging.DEBUG)                     # This is the addition to output the log to file
+
+__version_info__ = (3, 29, 0)
+__version__ = '.'.join(map(str, __version_info__))
+
+   #+END_SRC
+** Output log from connection.py
+   #+BEGIN_SRC
+... ...
+log.debug("This is the test log to file")
+... ...
+   #+END_SRC
+* cassandra install
+** Install cassanrda
+   Please refer to the [[https://cassandra.apache.org/doc/stable/cassandra/getting_started/installing.html][link]] to install the cassandra
+** Compile from source code
+   #+BEGIN_SRC
+workstation$ apt-get install ant
+workstation$ apt-get install maven
+workstation$ apt-get install java-openjdk11
+workstation$ git clone https://github.com/apache/cassandra.git
+workstation$ ./build-shaded-dtest-jar.sh
+workstation$ sudo more /etc/init.d/cassandra
+... ...
+#CASSANDRA_HOME=/usr/share/cassandra
+#jay:
+CASSANDRA_HOME=/opt/workspace/cassandra/build
+... ...
+#[ -e /usr/share/cassandra/apache-cassandra.jar ] || exit 0
+# jay: added the compiled jar
+[ -e /opt/workspace/cassandra/build/apache-cassandra-5.1-SNAPSHOT.jar ] || exit 0
+[ -e /etc/cassandra/cassandra.yaml ] || exit 0
+[ -e /etc/cassandra/cassandra-env.sh ] || exit 0
+workstation$ sudo systemctl start cassandra
+workstation$ ./bin/nodetool status 
+Datacenter: datacenter1
+=======================
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+--  Address    Load       Tokens  Owns (effective)  Host ID                               Rack 
+UN  127.0.0.1  61.97 KiB  16      100.0%            6d194555-f6eb-41d0-c000-000000000001  rack1
+workstation$ cqlsh 
+/usr/bin/cqlsh.py:477: DeprecationWarning: Legacy execution parameters will be removed in 4.0. Consider using execution profiles.
+/usr/bin/cqlsh.py:507: DeprecationWarning: Setting the consistency level at the session level will be removed in 4.0. Consider using execution profiles and setting the desired consistency level to the EXEC_PROFILE_DEFAULT profile.
+WARNING: cqlsh was built against 4.1.4, but this server is 5.1.  All features may not work!
+Connected to Test Cluster at 127.0.0.1:9042
+[cqlsh 6.1.0 | Cassandra 5.1-SNAPSHOT | CQL spec 3.4.7 | Native protocol v5]
+Use HELP for help.
+cqlsh> 
+
+   #+END_SRC
+   
