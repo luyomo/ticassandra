@@ -16,6 +16,7 @@ import (
     _ "github.com/go-sql-driver/mysql"
     "github.com/luyomo/ticql/pkg/tidb"
     "database/sql"
+    //"bytes"
 )
 
 // TCPServer struct
@@ -43,6 +44,12 @@ type QueryMessage struct {
     PayLoad  QueryOption
 }
 
+type SupportedVersion struct {
+     ProtocolVersion []string
+     Compression []string
+     CQLVersion []string
+}
+
 const (
     CRC32_INITIAL_VALUE="fa2d55ca"
     CRC24_INIT = 0x875060
@@ -65,13 +72,28 @@ const (
 
 // Start TCPServer
 func (s *TCPServer) Start() {
-    fmt.Printf("started tcp echo server... ... \n")
+    fmt.Printf("   ... ... started tcp echo server ... ... \n")
     ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.Bind, s.Port))
     defer ln.Close()
     if err != nil {
         panic(err)
     }
-    timeoutDuration := 1 * time.Minute
+
+    responseHeader := NewResponseHeader(0x85, 0, 0)
+
+    supportedVersion := NewStringMultiMap(responseHeader)
+    supportedVersion.Append("PROTOCOL_VERSIONS", []string{"3/v3", "4/v4", "5/v5", "6/v6-beta"} )
+    supportedVersion.Append("COMPRESSION", []string{"snappy", "lz4"})
+    supportedVersion.Append("CQL_VERSION", []string{"3.4.7"} )
+
+    fmt.Printf("string map value: %#v \n", supportedVersion.ToString())
+    fmt.Printf("string map value: %#v \n", supportedVersion.ToBytes())
+
+    // responseHeader := NewResponseHeader(0x85, 0, 0)
+    fmt.Printf("string map value: %#v \n", responseHeader.ToString())
+    fmt.Printf("string map value: %#v \n", responseHeader.ToBytes())
+
+    timeoutDuration := 2 * time.Minute
     for {
         //message := "0000000000000000000"
         var message []byte
@@ -79,11 +101,12 @@ func (s *TCPServer) Start() {
         if err != nil {
             panic(err)
         }
+
+        fmt.Println("\n\n\nStarting to collect data ********** ********** ")
         conn.SetReadDeadline(time.Now().Add(timeoutDuration))
         writer := bufio.NewWriter(conn)
-        fmt.Println("------------------")
         go func(conn net.Conn ) {
-            db, err := sql.Open("mysql", "cqluser:cqluser@tcp(192.168.1.108:4000)/test")
+            db, err := sql.Open("mysql", "cqluser:cqluser@tcp(10.128.0.21:4000)/test")
             if err != nil {
                 panic (err) 
                 return
@@ -94,16 +117,32 @@ func (s *TCPServer) Start() {
             defer conn.Close()
             for {
                 tableName := ""
-                msg := make([]byte, 4096)
-                //premsg := make([]byte, 4096)
-                //msg := make([]byte, 1024)
+
                 fmt.Println("\n\n\nStarting to collect data ********** ********** ")
-                readLen, err := conn.Read(msg)
-                fmt.Println("Gathered the info from remote ")
-                if err != nil {
-                    fmt.Printf("Errorr %s", err)
+		packet, err := NewACPacket(conn) 
+		if err != nil {
                     panic(err)
-                }
+		}
+		msg := packet.GetBuffer()
+		readLen := packet.GetLength()
+		if err := packet.DecodeHeader(); err != nil {
+                    panic(err)
+		}
+		header := packet.GetHeader()
+		fmt.Printf("The Header: %s \n\n", header.ToString())
+
+		_, err = packet.DecodeBody() 
+		if err != nil {
+                    panic(err)
+		}
+
+                //msg := make([]byte, 4096)
+                // readLen, err := conn.Read(msg)
+		// fmt.Println(fmt.Sprintf("Gathered the info from remote len: <%d>, message: <%#v> ", readLen, bytes.Trim(msg, "\x00") ))
+                // if err != nil {
+                //     fmt.Printf("Errorr %s", err)
+                //     panic(err)
+                // }
                 // fmt.Println(msg)
                 //fmt.Printf("%x\n", msg)
                 version := int(msg[0])
@@ -295,19 +334,24 @@ func (s *TCPServer) Start() {
                 }
 
                 if  version == 66 &&  op == 5 {
-                    message=returnUnsupport01()
+                    // message=returnUnsupport01()
                     conn.Write(message)
+		    //fmt.Printf("Bytes to send: %#v", supportedVersion.ToBytes() )
+
+		    //conn.Write(supportedVersion.ToBytes())
                     break
                 }
                 if  version == 65 &&  op == 5 {
-                    message=returnUnsupported02()
+                    // message=returnUnsupported02()
                     conn.Write(message)
+                    // conn.Write(supportedVersion.ToBytes())
                     break
                 }
                 if version == 5 && op == 5 {
                     sessionVersion = 5
                     message=returnServerMeta()
-                    conn.Write(message)
+                    // conn.Write(message)
+                    conn.Write(supportedVersion.ToBytes())
                 }
                 if version == 5 && op == 1 {
                     message=returnStartup()
@@ -323,15 +367,17 @@ func (s *TCPServer) Start() {
     }
 }
 
-func returnUnsupport01() []byte{
-    decodedByteArray, _ :=  hex.DecodeString("8500000000000000680000000a0062496e76616c6964206f7220756e737570706f727465642070726f746f636f6c2076657273696f6e20283636293b20737570706f727465642076657273696f6e73206172652028332f76332c20342f76342c20352f76352c20362f76362d6265746129")
-    return decodedByteArray
-}
+// func returnUnsupport01() []byte{
+//     decodedByteArray, _ :=  hex.DecodeString("8500000000000000680000000a0062496e76616c6964206f7220756e737570706f727465642070726f746f636f6c2076657273696f6e20283636293b20737570706f727465642076657273696f6e73206172652028332f76332c20342f76342c20352f76352c20362f76362d6265746129")
+//     // 85    00   00   00   00   00   00   00    68   00   00  000a0062496e76616c6964206f7220756e737570706f727465642070726f746f636f6c2076657273696f6e20283636293b20737570706f727465642076657273696f6e73206172652028332f76332c20342f76342c20352f76352c20362f76362d6265746129
+//     // 0x85, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x6f, 0x0, 0x3, 0x0, 0x11, 0x50, 0x52, 0x4f, 0x54, 0x4f, 0x43, 0x4f, 0x4c, 0x5f, 0x56, 0x45, 0x52, 0x53, 0x49, 0x4f, 0x4e, 0x53, 0x0, 0x4, 0x0, 0x4, 0x33, 0x2f, 0x76, 0x33, 0x0, 0x4, 0x34, 0x2f, 0x76, 0x34, 0x0, 0x4, 0x35, 0x2f, 0x76, 0x35, 0x0, 0x9, 0x36, 0x2f, 0x76, 0x36, 0x2d, 0x62, 0x65, 0x74, 0x61, 0x0, 0xb, 0x43, 0x4f, 0x4d, 0x50, 0x52, 0x45, 0x53, 0x53, 0x49, 0x4f, 0x4e, 0x0, 0x2, 0x0, 0x6, 0x73, 0x6e, 0x61, 0x70, 0x70, 0x79, 0x0, 0x3, 0x6c, 0x7a, 0x34, 0x0, 0xb, 0x43, 0x51, 0x4c, 0x5f, 0x56, 0x45, 0x52, 0x53, 0x49, 0x4f, 0x4e, 0x0, 0x1, 0x0, 0x5, 0x33, 0x2e, 0x34, 0x2e, 0x37
+//     return decodedByteArray
+// }
 
-func returnUnsupported02() []byte{
-    decodedByteArray, _ :=  hex.DecodeString("8500000000000000680000000a0062496e76616c6964206f7220756e737570706f727465642070726f746f636f6c2076657273696f6e20283636293b20737570706f727465642076657273696f6e73206172652028332f76332c20342f76342c20352f76352c20362f76362d6265746129")
-    return decodedByteArray
-}
+// func returnUnsupported02() []byte{
+//     decodedByteArray, _ :=  hex.DecodeString("8500000000000000680000000a0062496e76616c6964206f7220756e737570706f727465642070726f746f636f6c2076657273696f6e20283636293b20737570706f727465642076657273696f6e73206172652028332f76332c20342f76342c20352f76352c20362f76362d6265746129")
+//     return decodedByteArray
+// }
 
 func returnServerMeta() []byte{
     decodedByteArray, _ :=  hex.DecodeString("8500000006000000660003001150524f544f434f4c5f56455253494f4e5300040004332f76330004342f76340004352f76350009362f76362d62657461000b434f4d5052455353494f4e00020006736e6170707900036c7a34000b43514c5f56455253494f4e00010005332e342e35")
@@ -575,18 +621,210 @@ func compressLz4(){
     // Compress and uncompress an input string.
     s := "hello world"
     r := strings.NewReader(s)
-    
+
     // The pipe will uncompress the data from the writer.
     pr, pw := io.Pipe()
     zw := lz4.NewWriter(pw)
     zr := lz4.NewReader(pr)
-    
+
     go func() {
-    	// Compress the input string.
-    	_, _ = io.Copy(zw, r)
-    	_ = zw.Close() // Make sure the writer is closed
-    	_ = pw.Close() // Terminate the pipe
+        // Compress the input string.
+        _, _ = io.Copy(zw, r)
+        _ = zw.Close() // Make sure the writer is closed
+        _ = pw.Close() // Terminate the pipe
     }()
-    
+
     _, _ = io.Copy(os.Stdout, zr)
+}
+
+
+    //var supportedVersion SupportedVersion 
+//    supportedVerion.ProtocolVersion = []string{"3/v3", '4/v4', '5/v5', '6/v6-beta'}
+//    supportedVerion.Compression = []string{"snappy", "lz4"}
+//    supportedVerion.CQLVersion = []string{"3.4.7"}
+
+func DumpSupportedVersion(values map[string]interface{}) []byte {
+    data := make([]byte, 0, 128)
+
+    fmt.Printf("Number of keys: %d \n", len(values))
+
+    // Append 3 as the number of key/values
+    data = Uint16(data, uint16(len(values)) )
+
+    for key, value := range values {
+        fmt.Printf("key: %#v  value: %#v \n", key, value)
+        bytesValue := dumpString(key)
+        data = append(data, bytesValue...)
+
+        listValue := value.([]string)
+        data = Uint16(data, uint16(len(listValue)) )
+
+        for _, listEntry := range listValue {
+            bytesValue := dumpString(listEntry)
+            data = append(data, bytesValue...)
+        }
+    }
+    // ----- Append protocol version
+    // Append string key(len + value)
+//    // Append number of values of the protocol version
+//    // Loop: protocol version
+//    for _, value := range pSupportedVersion.ProtocolVersion {
+//        // Append string value(len + value)
+//    }
+//
+//    // ----- Append compression
+//    // Append string key(len + value)
+//    // Append number of values of the protocol version
+//    // Loop: protocol version
+//    for _, value := range pSupportedVersion.ProtocolVersion {
+//        // Append string value(len + value)
+//    }
+
+    
+    return data
+}
+
+func dumpString(value string) []byte {
+    data := make([]byte, 0, 128)
+
+    data = Uint16(data, uint16(len(value)) )
+
+    data = append(data, []byte(value)...)
+
+    return data
+}
+
+func Uint8(buffer []byte, n uint8) []byte {
+        buffer = append(buffer, byte(n))
+        return buffer
+}
+
+// Uint16 dumps an uint16 as byte slice.
+func Uint16(buffer []byte, n uint16) []byte {
+        buffer = append(buffer, byte(n>>8))
+        buffer = append(buffer, byte(n))
+        return buffer
+}
+
+func Uint32(buffer []byte, n uint32) []byte {
+        buffer = append(buffer, byte(n>>24))
+        buffer = append(buffer, byte(n>>16))
+        buffer = append(buffer, byte(n>>8))
+        buffer = append(buffer, byte(n))
+        return buffer
+}
+
+func ToUint32(n uint32) []byte {
+    buffer := make([]byte, 0, 4)
+    buffer = append(buffer, byte(n>>24))
+    buffer = append(buffer, byte(n>>16))
+    buffer = append(buffer, byte(n>>8))
+    buffer = append(buffer, byte(n))
+    return buffer
+}
+
+type ResponseHeader struct {
+    version  byte    // One byte: 0x03 / 0x83
+    flag     uint16  // Two bytes: flag
+    streamId uint8   // One byte: 
+    opCode  string // It's only for request from client
+    length   uint32  // Four bytes: 
+}
+
+func (h *ResponseHeader)Init(version byte, flag uint16, streamId uint8){
+    h.version = version
+    h.flag = flag
+    h.streamId = streamId
+}
+
+func NewResponseHeader(version byte, flag uint16, streamId uint8) *ResponseHeader {
+    var responseHeader ResponseHeader
+    responseHeader.Init(version, flag, streamId)
+    return &responseHeader
+}
+
+func (h *ResponseHeader) ToString() string {
+    return fmt.Sprintf("version: %b, flag: %d, stream id: %d", h.version, h.flag, h.streamId)
+}
+
+func (h *ResponseHeader) ToBytes() []byte {
+    data := make([]byte, 0, 9)
+
+    data = append(data, h.version)
+    data = Uint16(data, h.flag)
+    data = Uint8(data, h.streamId)
+    data = Uint8(data, 6)               // opcode
+    data = Uint32(data, 0)              // length
+
+    return data
+}
+
+
+type StringMultiMap struct {
+    header ResponseHeader
+    values map[string][]string
+    keys   []string
+}
+
+func NewStringMultiMap(responseHeader *ResponseHeader) *StringMultiMap {
+    var instance StringMultiMap
+    instance.Init(*responseHeader)
+
+    return &instance
+}
+
+func (s *StringMultiMap)Init(responseHeader ResponseHeader){
+    s.values = make(map[string][]string)
+    s.header = responseHeader
+}
+
+func (s *StringMultiMap)Append(key string, value []string){
+    s.keys = append(s.keys, key)
+    s.values[key] = value
+}
+
+func (s *StringMultiMap)ToBytes() []byte {
+    data := make([]byte, 0, 128)
+
+    data = append(data, s.header.ToBytes()... )
+
+    fmt.Printf("Number of keys: %d \n", len(s.keys))
+
+    // Append 3 as the number of key/values
+    data = Uint16(data, uint16(len(s.keys)) )
+
+    for _, key := range s.keys {
+        // Append key
+        bytesKey := dumpString(key)
+        data = append(data, bytesKey...)
+
+        listValue := s.values[key]
+
+        // Append number of values
+        data = Uint16(data, uint16(len(listValue)) )
+
+        for _, listEntry := range listValue {
+            bytesValue := dumpString(listEntry)
+            data = append(data, bytesValue...)
+        }
+    }
+
+    for idx:=0; idx<4; idx++ {
+        byteFrameLen := ToUint32(uint32(len(data)-9))      // len(body message) = len(data) - len(header)
+        data[idx+5] = byteFrameLen[idx]
+    }
+
+    return data
+}
+
+func (s *StringMultiMap)ToString() (ret string) {
+
+    for _, key := range s.keys {
+        if ret == "" {
+            ret = fmt.Sprintf("%s -> %s", key, strings.Join(s.values[key], ","))
+        } else {
+            ret = fmt.Sprintf("%s  %s -> %s", ret, key, strings.Join(s.values[key], ","))
+        }
+    }
+    return
 }
